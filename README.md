@@ -14,5 +14,5 @@ O script lê um arquivo CSV contendo informações sobre transações financeira
 
 1. Clone o repositório:
 
-bash
+```bash
 git clone https://github.com/danielcalp/Teste_vaga_Delfia.git
