@@ -1,45 +1,41 @@
-import csv
-import json
 import pandas as pd
+import configparser
 
-# Função para acessar e formatar os dados do arquivo CSV
-def acessar_formatar_csv(caminho_arquivo):
-    dados_formatados = []
+def acessar_formatar_csv(arquivo_csv_origem):
+    try:
+        # Lê o arquivo CSV diretamente como um DataFrame do Pandas
+        df = pd.read_csv(arquivo_csv_origem, delimiter=';')
+        return df
+    except FileNotFoundError:
+        print(f"Erro: Arquivo '{arquivo_csv_origem}' não encontrado.")
+        return None
+    except pd.errors.EmptyDataError:
+        print(f"Erro: Arquivo '{arquivo_csv_origem}' vazio ou formato inválido.")
+        return None
 
-    with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo_csv:
-        # Cria um objeto leitor de dicionário CSV com ponto e vírgula como delimitador
-        leitor_csv = csv.DictReader(arquivo_csv, delimiter=';')
+def marcar_transacoes_altas(valor_minimo, valor_coluna):
+    return 'Alta' if valor_coluna > valor_minimo else 'Normal'
 
-        # Itera sobre as linhas do arquivo CSV
-        for linha in leitor_csv:
-            # Remove o caractere (\ufeff) dos cabeçalhos, se presente
-            linha_corrigida = {chave.replace('\ufeff', ''): valor for chave, valor in linha.items()}
-            # Adiciona cada linha como um dicionário à lista
-            dados_formatados.append(linha_corrigida)
+def main():
+    # Leitura de parâmetros do arquivo config.cfg
+    config = configparser.ConfigParser()
+    config.read('config.cfg')
 
-    return dados_formatados
+    arquivo_csv_origem = config.get('Valores', 'arquivo_csv_origem')
+    df = acessar_formatar_csv(arquivo_csv_origem)
 
-# Caminho do arquivo CSV
-caminho_arquivo_csv = 'transacoes.csv'
+    valor_minimo_transacao = config.getint('Valores', 'limite_transacao')
+    if df is not None:
+        # Adiciona uma coluna 'Status' indicando se a transação é alta ou não
+        
+        df['Status'] = [marcar_transacoes_altas(valor_minimo_transacao, valor)
+                        for valor in df['Valor da Transação']]
+        
+        transacoes_altas = df[df['Status'] == 'Alta']
 
-# Obtém e formata os dados do arquivo CSV
-dados_csv_formatados = acessar_formatar_csv(caminho_arquivo_csv)
+        arquivo_csv_destino = config.get('Valores', 'arquivo_csv_destino')
+        transacoes_altas.to_csv(arquivo_csv_destino, index=False, encoding='utf-8-sig', sep=';')
+        print("Transações altas salvas em 'transacoes_altas.csv'.")
 
-# Lista para armazenar transações com valores altos
-transacoes_altas = []
-
-# Itera sobre as linhas formatadas do CSV
-for linha_csv in dados_csv_formatados:
-    nome_cliente = linha_csv['Nome do Cliente']
-    valor_transacao = linha_csv['Valor da Transação']
-    data_transacao = linha_csv['Data da Transação']
-
-    # Verifica se o valor da transação é maior que 1000
-    if int(valor_transacao) > 1000:
-        transacoes_altas.append(linha_csv)
-
-# Cria um DataFrame do pandas com as transações altas
-df_transacoes_altas = pd.DataFrame(transacoes_altas)
-
-# Salva as transações altas em um novo arquivo CSV
-df_transacoes_altas.to_csv('transacoes_altas.csv', index=False, encoding='utf-8-sig', sep=';')
+if __name__ == "__main__":
+    main()
